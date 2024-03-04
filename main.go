@@ -15,9 +15,9 @@ import (
 var (
 	profile                     string
 	InstanceIdentifier          string
-	SnapshotIdentifier          = "kony-cutover"
+	SnapshotIdentifier          = "cutover"
 	NewEngineVersion            = "8.0.36"
-	DbParameterGroupName        = "mysql8-sgn-capture"
+	DbParameterGroupName        = "mysql8-capture"
 	DbParameterGroupFamily      = "mysql8.0"
 	DbParameterGroupDescription = "MySQL 8 parameter group"
 )

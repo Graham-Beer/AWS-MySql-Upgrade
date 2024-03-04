@@ -3,6 +3,7 @@ package main
 import (
 	"Kony/v2/pkg/database"
 	"context"
+	"flag"
 	"fmt"
 	"time"
 
@@ -12,17 +13,26 @@ import (
 
 // Define variables instead of repeating strings
 var (
-	InstanceIdentifier          = "database-1"
-	SnapshotIdentifier          = "cutover-test-1"
+	profile                     string
+	InstanceIdentifier          string
+	SnapshotIdentifier          = "kony-cutover"
 	NewEngineVersion            = "8.0.36"
-	DbParameterGroupName        = "mysql8"
+	DbParameterGroupName        = "mysql8-sgn-capture"
 	DbParameterGroupFamily      = "mysql8.0"
 	DbParameterGroupDescription = "MySQL 8 parameter group"
 )
 
+func init() {
+	flag.StringVar(&InstanceIdentifier, "instance-identifier", "", "RDS instance identifier")
+	flag.StringVar(&profile, "profile", "default", "AWS profile name (defaults to 'default')")
+	flag.Parse()
+}
+
 func main() {
 	// Load AWS SDK configuration
-	cfg, err := config.LoadDefaultConfig(context.Background())
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion("eu-west-1"))
 	if err != nil {
 		fmt.Println("Error loading AWS config:", err)
 		return
@@ -46,8 +56,13 @@ func main() {
 		}
 	}
 
+	// Format the date in the desired format (YYYYMMDD)
+	formattedDate := currentTime.Format("060104")
+
+	SnapshotFormattedName := fmt.Sprintf("%s-%s", SnapshotIdentifier, formattedDate)
+
 	// Create database snapshot
-	snapshot, err := database.CreateDBSnapshot(client, InstanceIdentifier, SnapshotIdentifier)
+	snapshot, err := database.CreateDBSnapshot(client, InstanceIdentifier, SnapshotFormattedName)
 	handleError(err, "creating snapshot")
 	if err != nil {
 		return
@@ -60,8 +75,9 @@ func main() {
 	fmt.Printf("  * Engine Version: %s\n", *snapshot.EngineVersion)
 
 	// Wait for snapshot completion
+	fmt.Println("")
 	fmt.Printf("**Snapshot of [%s] Started**\n", InstanceIdentifier)
-	err = database.WaitForSnapshotCompletion(client, SnapshotIdentifier)
+	err = database.WaitForSnapshotCompletion(client, SnapshotFormattedName)
 	handleError(err, "waiting for snapshot completion")
 	if err != nil {
 		return

@@ -3,8 +3,8 @@ Using the Go AWS SDK v2, this code creates a snapshot, a db Parameter group and 
 
 ### Command usage
 Parameters:
-  instance-identifier: Database name
-  Profile: Profile name from ~/.aws/credentials file
+  - instance-identifier: Database name
+  - Profile: Profile name from ~/.aws/credentials file
 
 ./build/upgrade-db -instance-identifier database-1 -profile sandbox
 

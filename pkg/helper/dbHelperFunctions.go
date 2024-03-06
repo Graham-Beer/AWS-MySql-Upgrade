@@ -23,11 +23,11 @@ func ProcessStatus[T DescribeDB](
 	getstate getstatus[T],
 ) (string, error) {
 	switch status {
-	case "creating", "modifying", "upgrading":
-		fmt.Printf("%s..", status)
-		for status == "creating" || status == "modifying" || status == "upgrading" {
+	case "creating", "modifying", "upgrading", "rebooting":
+		fmt.Printf("%s.", status)
+		for status == "creating" || status == "modifying" || status == "upgrading" || status == "rebooting" {
 			time.Sleep(10 * time.Second)
-			fmt.Print("..")
+			fmt.Print(".")
 			resource, err := getter(client, identifier)
 			if err != nil {
 				return "", err
@@ -55,12 +55,18 @@ func IsAvailable() {
 	fmt.Println("")
 }
 
-func DbComplete(engineVersion string) {
-	completed := time.Now()
-	formattedCompleteTime := completed.Format("2006-01-02 15:04:05")
+func DbComplete(db *rds.DescribeDBInstancesOutput) {
+	engineVersion := GetDbVersion(db)
 	fmt.Println("")
 	fmt.Printf("**Database version check: %s**\n", engineVersion)
-	fmt.Printf("**Database upgrade complete at: %s**\n", formattedCompleteTime)
+}
+
+func DbRebootComplete(db *rds.DescribeDBInstancesOutput) {
+	fmt.Println("")
+	name := db.DBInstances[0].DBInstanceIdentifier
+	completed := time.Now()
+	formattedCompleteTime := completed.Format("2006-01-02 15:04:05")
+	fmt.Printf("**Database [%s] upgrade complete at: %s**\n", *name, formattedCompleteTime)
 }
 
 func DbUpgradeMessage() {
@@ -70,6 +76,30 @@ func DbUpgradeMessage() {
 	fmt.Println("")
 	fmt.Println("**Upgrade Progress:**")
 	fmt.Printf("  Status: %s", "[")
+}
+
+func DbRebootMessage() {
+	fmt.Println("")
+	fmt.Println("**Rebooting database**")
+	fmt.Printf("  Status: %s", "[")
+}
+
+func WaitForStatus(client *rds.Client, requiredStatus, identifier string) error {
+	for {
+		output, err := GetDBInstance(client, identifier)
+		if err != nil {
+			return err
+		}
+		status := GetDbStatus(output)
+
+		if status == requiredStatus {
+			break
+		}
+
+		time.Sleep(100 * time.Second)
+	}
+
+	return nil
 }
 
 func GetDBInstance(client *rds.Client, identifier string) (*rds.DescribeDBInstancesOutput, error) {

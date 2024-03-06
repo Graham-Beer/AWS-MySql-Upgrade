@@ -3,7 +3,6 @@ package database
 import (
 	"Kony/v2/pkg/helper"
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
@@ -19,19 +18,11 @@ func ModifyDBInstance(client *rds.Client, instanceIdentifier, newEngineVersion, 
 	}
 
 	_, err := client.ModifyDBInstance(context.Background(), params)
-
-	for {
-		output, err := helper.GetDBInstance(client, instanceIdentifier)
-		if err != nil {
-			return err
-		}
-		status := helper.GetDbStatus(output)
-		if status == "upgrading" {
-			break
-		}
-
-		time.Sleep(100 * time.Second)
+	if err != nil {
+		return err
 	}
 
-	return err
+	helper.WaitForStatus(client, "upgrading", instanceIdentifier)
+
+	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"Kony/v2/pkg/database"
+	"Kony/v2/pkg/helper"
 	"context"
 	"flag"
 	"fmt"
@@ -17,7 +18,7 @@ var (
 	InstanceIdentifier          string
 	SnapshotIdentifier          = "cutover"
 	NewEngineVersion            = "8.0.36"
-	DbParameterGroupName        = "mysql8-capture"
+	DbParameterGroupName        = "mysql8-db"
 	DbParameterGroupFamily      = "mysql8.0"
 	DbParameterGroupDescription = "MySQL 8 parameter group"
 )
@@ -56,8 +57,8 @@ func main() {
 		}
 	}
 
-	// Format the date in the desired format (YYYYMMDD)
-	formattedDate := currentTime.Format("060104")
+	// Format the date as ddmmyyyy
+	formattedDate := currentTime.Format("1504-02012006")
 
 	SnapshotFormattedName := fmt.Sprintf("%s-%s", SnapshotIdentifier, formattedDate)
 
@@ -100,8 +101,23 @@ func main() {
 	fmt.Println("3. DB instance engine version modified")
 
 	// Wait for DB upgrade
-	err = database.WaitForDbUpgrade(client, InstanceIdentifier)
+	err = database.WaitForResource(client, InstanceIdentifier, helper.DbUpgradeMessage, helper.DbComplete)
+	//err = database.WaitForDbUpgrade(client, InstanceIdentifier)
 	handleError(err, "upgrading DB instance")
+	if err != nil {
+		return
+	}
+
+	// reboot DB
+	err = database.RebootAwsDatabase(client, InstanceIdentifier)
+	handleError(err, "rebooting DB instance")
+	if err != nil {
+		return
+	}
+
+	// Wait for reboot to complete
+	err = database.WaitForResource(client, InstanceIdentifier, helper.DbRebootMessage, helper.DbRebootComplete)
+	handleError(err, "rebooted DB instance")
 	if err != nil {
 		return
 	}
